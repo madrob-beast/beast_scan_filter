@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>beast_scan_filter</name>
+  <version>0.0.0</version>
+  <description>The beast_scan_filter package</description>
+
+  <maintainer email="enrico.piazza@polimi.it">Enrico Piazza</maintainer>
+  <author email="enrico.piazza@polimi.it">Enrico Piazza</author>
+  <license>MIT</license>
+  <url type="website">https://github.com/madrob-beast/beast_scan_filter</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <export>
+  </export>
+</package>

@@ -1,0 +1,116 @@
+#!/usr/bin/python2
+import copy
+import os
+import sys
+import numpy as np
+
+import rospy
+import yaml
+from sensor_msgs.msg import LaserScan
+
+
+class BeastScanFilter(object):
+    def __init__(self):
+        self.excluded_ranges = set()
+        self.last_input_msg = None
+        self.output_scan_publisher = None
+
+        self.excluded_ranges_path = None
+        self.input_topic = None
+        self.publish_rate = None
+        self.calibration_min_range = None
+        self.calibration_margin = None
+        self.calibration_duration = None
+        self.calibration_mode = None
+
+    def run(self):
+        rospy.init_node('beast_laser_scan_filter')
+
+        # parameters
+        self.excluded_ranges_path = rospy.get_param("~excluded_ranges_path")
+        self.input_topic = rospy.get_param("~input_topic", "/beast_cart/scan")
+        self.calibration_mode = rospy.get_param("~calibration_mode", False)
+        self.publish_rate = rospy.get_param("~publish_rate", 10.0)
+        self.calibration_min_range = rospy.get_param("~calibration_min_range", 1.0)
+        self.calibration_margin = rospy.get_param("~calibration_margin", 10)
+        self.calibration_duration = rospy.Duration.from_sec(rospy.get_param("~calibration_duration", 5.0))
+
+        self.output_scan_publisher = rospy.Publisher(self.input_topic + "_filtered", LaserScan, queue_size=1)
+        start_time = rospy.Time.now()
+
+        # start receiving messages
+        if self.calibration_mode:
+            self.excluded_ranges = set()
+            calibration_sub = rospy.Subscriber(self.input_topic, LaserScan, self.calibrate_excluded_ranges_callback, queue_size=1)
+        else:
+            if not os.path.exists(self.excluded_ranges_path):
+                rospy.logfatal("excluded_ranges_path [%s] does not exists" % self.excluded_ranges_path)
+                sys.exit(0)
+
+            with open(self.excluded_ranges_path) as f:
+                self.excluded_ranges = yaml.safe_load(f)
+            self.excluded_ranges = set(self.excluded_ranges)
+            calibration_sub = None
+
+        rospy.Subscriber(self.input_topic, LaserScan, self.input_scan_callback, queue_size=1)
+        rospy.Timer(rospy.Duration.from_sec(1./self.publish_rate), self.output_scan_callback)
+
+        r = rospy.Rate(10*self.publish_rate)
+        try:
+            while not rospy.is_shutdown():
+                r.sleep()
+                if calibration_sub is not None and rospy.Time.now() - start_time > self.calibration_duration:
+                    rospy.loginfo("calibration_mode: finished")
+                    calibration_sub.unregister()
+                    calibration_sub = None
+                    self.save_excluded_ranges()
+        except KeyboardInterrupt:
+            rospy.loginfo("interrupted")
+        except rospy.ROSException:
+            pass
+        sys.exit(0)
+
+    def input_scan_callback(self, msg):
+        self.last_input_msg = copy.deepcopy(msg)
+
+    def output_scan_callback(self, _):
+        if self.last_input_msg is not None:
+            msg = LaserScan()
+            msg.header = self.last_input_msg.header
+            msg.angle_min = self.last_input_msg.angle_min
+            msg.angle_max = self.last_input_msg.angle_max
+            msg.angle_increment = self.last_input_msg.angle_increment
+            msg.scan_time = self.last_input_msg.scan_time
+            msg.time_increment = self.last_input_msg.time_increment
+            msg.range_min = self.last_input_msg.range_min
+            msg.range_max = self.last_input_msg.range_max
+
+            ranges = np.array(self.last_input_msg.ranges)
+            intensities = np.array(self.last_input_msg.intensities)
+
+            for i in self.excluded_ranges:
+                ranges[i] = np.nan
+                intensities[i] = np.nan
+
+            msg.ranges = ranges
+            msg.intensities = intensities
+
+            self.output_scan_publisher.publish(msg)
+            self.last_input_msg = None
+
+    def calibrate_excluded_ranges_callback(self, input_msg):
+        for i, r in enumerate(input_msg.ranges):
+            if r < self.calibration_min_range:
+                for j in range(i-self.calibration_margin, i+self.calibration_margin+1):
+                    self.excluded_ranges.add(j)
+
+    def save_excluded_ranges(self):
+        with open(self.excluded_ranges_path, 'w') as f:
+            yaml.dump(list(self.excluded_ranges), f)
+
+        rospy.loginfo("saved excluded_ranges to %s" % self.excluded_ranges_path)
+
+
+if __name__ == '__main__':
+    node = BeastScanFilter()
+    node.run()

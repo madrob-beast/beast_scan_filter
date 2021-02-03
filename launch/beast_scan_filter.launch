@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+
+
+  <arg name="calibration_mode" default="false"/>
+
+  <group ns="beast">
+    <node pkg="beast_scan_filter" type="beast_scan_filter" name="beast_scan_filter" output="screen">
+      <param name="excluded_ranges_path" type="string" value="$(find beast_scan_filter)/config/excluded_ranges.yaml"/>
+      <param name="calibration_mode" type="bool" value="$(arg calibration_mode)"/>
+    </node>
+  </group>
+
+</launch>
