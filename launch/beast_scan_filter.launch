@@ -1,14 +1,18 @@
 <?xml version="1.0"?>
 <launch>
 
-
+  <arg name="input_topic" default="scan"/>
   <arg name="calibration_mode" default="false"/>
+  <arg name="calibration_duration" default="5"/>
+  <arg name="calibration_margin" default="10"/>
 
-  <group ns="beast">
-    <node pkg="beast_scan_filter" type="beast_scan_filter" name="beast_scan_filter" output="screen">
-      <param name="excluded_ranges_path" type="string" value="$(find beast_scan_filter)/config/excluded_ranges.yaml"/>
-      <param name="calibration_mode" type="bool" value="$(arg calibration_mode)"/>
-    </node>
-  </group>
+  <node pkg="beast_scan_filter" type="beast_scan_filter" name="beast_scan_filter" output="screen">
+    <param name="excluded_ranges_path" type="string" value="$(find beast_scan_filter)/config/excluded_ranges.yaml"/>
+    <param name="input_topic" type="string" value="$(arg input_topic)"/>
+
+    <param name="calibration_mode" type="bool" value="$(arg calibration_mode)"/>
+    <param name="calibration_duration" type="double" value="$(arg calibration_duration)"/>
+    <param name="calibration_margin" type="int" value="$(arg calibration_margin)"/>
+  </node>
 
 </launch>
