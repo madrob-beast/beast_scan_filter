@@ -7,7 +7,7 @@
   <arg name="calibration_margin" default="10"/>
 
   <node pkg="beast_scan_filter" type="beast_scan_filter" name="beast_scan_filter" output="screen">
-    <param name="excluded_ranges_path" type="string" value="$(find beast_scan_filter)/config/excluded_ranges.yaml"/>
+    <param name="excluded_ranges_path" type="string" value="$(find beast_scan_filter)/config/walker_excluded_ranges.yaml"/>
     <param name="input_topic" type="string" value="$(arg input_topic)"/>
 
     <param name="calibration_mode" type="bool" value="$(arg calibration_mode)"/>
