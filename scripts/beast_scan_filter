@@ -28,7 +28,7 @@ class BeastScanFilter(object):
 
         # parameters
         self.excluded_ranges_path = rospy.get_param("~excluded_ranges_path")
-        self.input_topic = rospy.get_param("~input_topic", "/beast_cart/scan")
+        self.input_topic = rospy.get_param("~input_topic", "scan")
         self.calibration_mode = rospy.get_param("~calibration_mode", False)
         self.publish_rate = rospy.get_param("~publish_rate", 10.0)
         self.calibration_min_range = rospy.get_param("~calibration_min_range", 1.0)
@@ -42,6 +42,7 @@ class BeastScanFilter(object):
         if self.calibration_mode:
             self.excluded_ranges = set()
             calibration_sub = rospy.Subscriber(self.input_topic, LaserScan, self.calibrate_excluded_ranges_callback, queue_size=1)
+            rospy.loginfo("starting calibration")
         else:
             if not os.path.exists(self.excluded_ranges_path):
                 rospy.logfatal("excluded_ranges_path [%s] does not exists" % self.excluded_ranges_path)
@@ -88,14 +89,19 @@ class BeastScanFilter(object):
             ranges = np.array(self.last_input_msg.ranges)
             intensities = np.array(self.last_input_msg.intensities)
 
-            for i in self.excluded_ranges:
-                ranges[i] = np.nan
-                intensities[i] = np.nan
+            try:
+                for i in self.excluded_ranges:
+                    ranges[i] = np.nan
+                    intensities[i] = np.nan
 
-            msg.ranges = ranges
-            msg.intensities = intensities
+                msg.ranges = ranges
+                msg.intensities = intensities
 
-            self.output_scan_publisher.publish(msg)
+                self.output_scan_publisher.publish(msg)
+            except RuntimeError:
+                # to avoid exception "RuntimeError: Set changed size during iteration" during calibration
+                pass
+
             self.last_input_msg = None
 
     def calibrate_excluded_ranges_callback(self, input_msg):
